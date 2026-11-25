@@ -15,9 +15,27 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.7'
-      - name: Build debug APK
-        run: gradle assembleDebug --no-daemon
+      - name: Ekstrak ZIP dan build
+        run: |
+          mkdir -p /tmp/proj "$GITHUB_WORKSPACE/out"
+          ZIP=$(find . -iname '*browser*.zip' -not -path './.git/*' | head -n 1)
+          [ -z "$ZIP" ] && ZIP=$(find . -iname '*.zip' -not -path './.git/*' | head -n 1)
+          if [ -n "$ZIP" ]; then
+            echo "Mengekstrak $ZIP"
+            unzip -q -o "$ZIP" -d /tmp/proj
+          else
+            cp -r . /tmp/proj
+          fi
+          FILE=$(find /tmp/proj -name settings.gradle | head -n 1)
+          if [ -z "$FILE" ]; then
+            echo "settings.gradle tidak ketemu. Isi repo:"
+            find . -maxdepth 3 -not -path './.git/*'
+            exit 1
+          fi
+          cd "$(dirname "$FILE")"
+          gradle assembleDebug --no-daemon
+          cp app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/out/LiquidBrowser.apk"
       - uses: actions/upload-artifact@v4
         with:
           name: LiquidBrowser-APK
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: out/LiquidBrowser.apk
